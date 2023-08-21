@@ -6,7 +6,7 @@ import PageContainer from '~/components/layouts/PageContainer';
 import FooterDefault from '~/components/shared/footers/FooterDefault';
 import Newletters from '~/components/partials/commons/Newletters';
 
-const LoginPage = () => {
+const LoginPage = ({db, auth}) => {
     const breadCrumb = [
         {
             text: 'Home',
@@ -21,7 +21,7 @@ const LoginPage = () => {
             <PageContainer footer={<FooterDefault />} title="Login">
                 <div className="ps-page--my-account">
                     <BreadCrumb breacrumb={breadCrumb} />
-                    <Login />
+                    <Login db={db} auth={auth} />
                 </div>
                 <Newletters layout="container" />
             </PageContainer>
