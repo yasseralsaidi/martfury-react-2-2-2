@@ -1,47 +1,54 @@
-import React, { Component } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Router from 'next/router';
 import { login } from '../../../store/auth/action';
-
+import { doc, collection, getCountFromServer, getDocs, getDoc, query, where, or } from "firebase/firestore";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import bcrypt from 'bcryptjs';
 import { Form, Input, notification } from 'antd';
 import { connect } from 'react-redux';
 
-class Login extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {};
-    }
+const Login = ({db, auth}) => {
 
-    static getDerivedStateFromProps(props) {
-        if (props.isLoggedIn === true) {
-            Router.push('/');
+    const [userName, setUserName] = useState("");
+    const [password, setPassword] = useState("");
+    const [validation, setValidation] = useState("");
+    const coll = collection(db, 'users');
+
+
+
+    const handleLoginSubmit = async () => {
+         setValidation("");
+        const userQuery = query(coll, or(where("lowername", "==", userName.toLowerCase()), where("email", "==", userName.toLowerCase())));
+        const userSnapshot = await getDocs(userQuery);
+        if(userSnapshot.docs.length > 0){
+        const docRef = doc(db, 'users', String(userSnapshot.docs[0].id));
+        const docSnap = await getDoc(docRef);
+        const compare = await bcrypt.compare(password, docSnap.data().password);
+            if(compare){
+            await signInWithEmailAndPassword(auth, docSnap.data().email, docSnap.data().password)
+              .then((userCredential) => {
+                console.log('signed in');
+                login();
+                Router.push('/');
+              })
+              .catch((error) => {
+               console.log('error with sign in');
+              });
+
+            }else{
+                setValidation("Wrong Password");
+            }
+        }else{
+            setValidation("User/Email Does Not Exist");
         }
-        return false;
     }
 
-    handleFeatureWillUpdate(e) {
-        e.preventDefault();
-        notification.open({
-            message: 'Opp! Something went wrong.',
-            description: 'This feature has been updated later!',
-            duration: 500,
-        });
-    }
-
-    handleLoginSubmit = e => {
-        console.log('test');
-        this.props.dispatch(login());
-        Router.push('/');
-
-    };
-
-    render() {
         return (
             <div className="ps-my-account">
                 <div className="container">
                     <Form
-                        className="ps-form--account"
-                        onFinish={this.handleLoginSubmit.bind(this)}>
+                        className="ps-form--account">
                         <ul className="ps-tab-list">
                             <li className="active">
                                 <Link href="/account/login">
@@ -59,18 +66,19 @@ class Login extends Component {
                                 <h5>Log In Your Account</h5>
                                 <div className="form-group">
                                     <Form.Item
-                                        name="username"
+                                        name="email/user"
                                         rules={[
                                             {
                                                 required: true,
                                                 message:
-                                                    'Please input your email!',
+                                                    'Please input your email/username!',
                                             },
                                         ]}>
                                         <Input
                                             className="form-control"
                                             type="text"
                                             placeholder="Username or email address"
+                                            onChange={(e) => setUserName(e.target.value)}
                                         />
                                     </Form.Item>
                                 </div>
@@ -88,6 +96,7 @@ class Login extends Component {
                                             className="form-control"
                                             type="password"
                                             placeholder="Password..."
+                                            onChange={(e) => setPassword(e.target.value)}
                                         />
                                     </Form.Item>
                                 </div>
@@ -106,14 +115,16 @@ class Login extends Component {
                                 </div>
                                 <div className="form-group submit">
                                     <button
+                                        onClick={() => handleLoginSubmit()}
                                         type="submit"
                                         className="ps-btn ps-btn--fullwidth">
                                         Login
                                     </button>
                                 </div>
                             </div>
-                            <div className="ps-form__footer">
-                                <p>Connect with:</p>
+                            <div className="ps-form__footer" style={{textAlign: 'center'}}>
+                            <p style={{color: 'red'}}>{validation}</p>
+                               {/* <p>Connect with:</p>
                                 <ul className="ps-list--social">
                                     <li>
                                         <a
@@ -155,14 +166,13 @@ class Login extends Component {
                                             <i className="fa fa-instagram"></i>
                                         </a>
                                     </li>
-                                </ul>
+                                </ul>*/}
                             </div>
                         </div>
                     </Form>
                 </div>
             </div>
         );
-    }
 }
 const mapStateToProps = state => {
     return state.auth;
